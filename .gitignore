@@ -1,0 +1,4 @@
+Nikai/
+.venv/
+__pycache__/
+*.pyc
