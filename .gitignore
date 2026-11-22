@@ -1,4 +1,14 @@
+# not public: recordings, internal documents and results computed from them
 Nikai/
+data/
+results/
+
+# early tests on synthetic signals, kept only locally
+r_detection_tests.py
+synth_ecg.py
+rezultatai/
+
+# Python
 .venv/
 __pycache__/
 *.pyc
