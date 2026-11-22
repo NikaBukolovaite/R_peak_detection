@@ -1,12 +1,3 @@
-"""Step 2: every number on the poster, from the marks of step 1.
-
-    python evaluate.py --data data --marks results/marks --out results
-
-Reference: the vote of step 1, each beat moved to the largest deflection of the 0.5-40 Hz signal
-within 100 ms (the dominant QRS extremum, whatever its polarity). A beat counts as found when a mark
-lies within 150 ms of it (one mark per beat). Missed beats are counted out of the vote beats, extra
-marks out of the marks of the method.
-"""
 from __future__ import annotations
 
 import argparse
@@ -20,7 +11,7 @@ from rpeak.data import load_records, review_copy
 from rpeak.detectors import bandpass
 
 FS = 200
-T150, T75, T25 = 30, 15, 5            # tolerances in samples
+T150, T75, T25 = 30, 15, 5
 PRE, POST = int(0.2 * FS), int(0.4 * FS)
 
 
@@ -29,7 +20,6 @@ def tol(ms: float) -> int:
 
 
 def match(ref, det, t):
-    """One-to-one matching within t samples, closest pairs first. Returns sorted ref, det and matched indices."""
     ref = np.sort(np.asarray(ref)); det = np.sort(np.asarray(det)); pairs = []; j0 = 0
     for i, x in enumerate(ref):
         while j0 < len(det) and det[j0] < x - t:
@@ -55,7 +45,6 @@ def vote_at_extremum(broad, vote):
 
 
 def beat_groups(broad, p, threshold=0.2):
-    """Cut each beat from 200 ms before to 400 ms after its mark and group the beats by shape."""
     p = np.sort(np.asarray(p)); p = p[(p - PRE >= 0) & (p + POST < len(broad))]
     W = np.stack([broad[q - PRE:q + POST] for q in p])
     W = W - W.mean(1, keepdims=True); W /= (W.std(1, keepdims=True) + 1e-9)
@@ -90,14 +79,12 @@ def main() -> None:
         marks[k]["vote_at_extremum"] = ref[k].tolist()
     out = {}
 
-    # ---------------------------------------------------------------- data (Section 2)
     mins = [len(d["sig"]) / FS / 60 for d in recs.values()]
     out["data"] = dict(records=len(recs), minutes_min=min(mins), minutes_max=max(mins), hours=sum(mins) / 60,
                        vote_beats=int(sum(len(r) for r in ref.values())),
                        baseline_marks=int(sum(len(d["baseline"]) for d in recs.values())),
                        quality={q: sum(d["quality"] == q for d in recs.values()) for q in ("clean", "noisy", "pacemaker")})
 
-    # ---------------------------------------------------------------- Table 2: baseline errors by group
     rows = {}
     for k, d in recs.items():
         r, det, mr, md = match(ref[k], d["baseline"], T150)
@@ -119,13 +106,11 @@ def main() -> None:
                                                    q3=float(np.percentile(err, 75)), max=float(err.max()),
                                                    records_above_5pct=int(np.sum(err > 5))))
 
-    # ---------------------------------------------------------------- Table 3: methods vs the vote
     methods = ["xqrs+fix", "pantompkins1985+fix", "hamilton2002+fix", "christov2004+fix", "neurokit",
                "neurokit_0.5-10", "elgendi+fix", "baseline",
                "xqrs", "pantompkins1985", "hamilton2002", "christov2004", "neurokit+fix", "elgendi"]
     out["table3"] = {m: scores(recs, ref, marks, m) for m in methods}
 
-    # ---------------------------------------------------------------- Table 1: example recordings
     t1 = {}
     for k in ["1704502.531", "1715213.477", "1652786.026", "1716089.465", "1633509.831", "1640106.330",
               "1640137.809", "1640159.572"]:
@@ -135,11 +120,9 @@ def main() -> None:
             t1[k]["vote_beats"] = rows[k]["vote"]
     out["table1"] = t1
 
-    # ---------------------------------------------------------------- tolerance (conclusions)
     out["tolerance_mean_f1"] = {m: {ms: scores(recs, ref, marks, m, tol(ms))["mean_f1"] for ms in (150, 75, 25)}
                                 for m in ("xqrs+fix", "neurokit", "neurokit+fix")}
 
-    # ---------------------------------------------------------------- mark position details
     k = "1715135.145"
     if k in recs:
         med = {}
@@ -148,7 +131,6 @@ def main() -> None:
             med[m] = float(np.median((d[md] - r[mr]) * 1000 / FS))
         out["hamilton_1715135_median_offset_ms"] = med
 
-    # ---------------------------------------------------------------- Fig. 3: beat-shape groups
     outside = {m: [0, 0] for m in ("baseline", "vote_at_extremum", "xqrs+fix")}
     per_rec = {}
     for k in recs:
@@ -168,7 +150,6 @@ def main() -> None:
     out["fig3"] = dict(outside_main_group_pct={m: 100 * a / b for m, (a, b) in outside.items()},
                        baseline_extra_marks_outside=[extra_out, extra_all], per_record=per_rec)
 
-    # ---------------------------------------------------------------- report
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "poster_numbers.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
     D = out["data"]; T2 = out["table2"]; P = T2["per_record_error_pct"]

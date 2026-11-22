@@ -1,19 +1,3 @@
-"""Step 1: run every detector on every recording and build the majority vote.
-
-    python run_detectors.py --data data --out results
-
-Writes results/marks/<record>.json with the R-peak marks (sample indices) of
-    neurokit, pantompkins1985, hamilton2002, christov2004, xqrs   on a 5-20 Hz signal
-    (Christov on 0.5-40 Hz, its adaptive thresholds fail on the narrow band)
-    the same five with "+fix": the signal is inverted if most QRS complexes are negative,
-    and each mark is moved to the largest deflection of the 0.5-40 Hz signal within 50 ms
-    neurokit_0.5-10    NeuroKit on a 0.5-10 Hz signal
-    elgendi, elgendi+fix   Elgendi's blocks of interest (settings of Wolf et al. 2026) on 5-20 Hz
-    baseline           the marks stored with the recording
-    vote               beats marked by at least 3 of neurokit, pantompkins1985, hamilton2002 and
-                       xqrs within 150 ms (position: median of the cluster). If data/<record>.vote.json
-                       exists, that stored vote is used instead and this one is kept as vote_recomputed.
-"""
 from __future__ import annotations
 
 import argparse
@@ -51,7 +35,6 @@ def detect_all(ecg: np.ndarray) -> dict[str, np.ndarray]:
     _, info = nk.ecg_peaks(x, sampling_rate=FS, method="neurokit", correct_artifacts=False)
     marks["neurokit_0.5-10"] = np.asarray(info["ECG_R_Peaks"], dtype=int)
 
-    # Elgendi was added later and run on the 16-bit copy of the recording (see rpeak.data.review_copy)
     ev = review_copy(ecg)
     ev_polarity = estimate_polarity(ev, FS)[0]
     narrow = bandpass(ev, FS, *BAND)
@@ -75,7 +58,6 @@ def main() -> None:
         vote, _ = consensus_peaks({m: marks[m] for m in VOTERS}, FS, VOTE_TOL_MS)
         stored = args.data / f"{rec}.vote.json"
         if stored.exists():
-            # the vote the poster used, stored by our review tool (earlier version of the clustering)
             marks["vote_recomputed"] = vote
             marks["vote"] = np.asarray(json.loads(stored.read_text(encoding="utf-8"))["vote"], dtype=int)
         else:

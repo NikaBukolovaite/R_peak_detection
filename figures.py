@@ -1,11 +1,3 @@
-"""Step 3: Fig. 2 and Fig. 3 of the poster.
-
-    python figures.py --data data --marks results/marks --out results/figures
-
-fig2_a.png, fig2_b.png, fig2_c.png  detector marks on short windows (B baseline method, X XQRS with fix,
-                                     NK NeuroKit), 0.5-40 Hz signal
-fig3.png                             beat-shape groups of recording 1652786, baseline method vs the vote
-"""
 from __future__ import annotations
 
 import argparse
@@ -16,16 +8,16 @@ import matplotlib
 import numpy as np
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
-from scipy.cluster.hierarchy import fcluster, linkage  # noqa: E402
+import matplotlib.pyplot as plt
+from scipy.cluster.hierarchy import fcluster, linkage
 
-from evaluate import vote_at_extremum  # noqa: E402
-from rpeak.data import load_records, review_copy  # noqa: E402
-from rpeak.detectors import bandpass  # noqa: E402
+from evaluate import vote_at_extremum
+from rpeak.data import load_records, review_copy
+from rpeak.detectors import bandpass
 
 FS = 200
 RED, PURPLE, BLUE, AQUA, GRID, INK, MUTED = "#e53935", "#7b1fa2", "#2a78d6", "#1baf7a", "#e3e3e3", "#222222", "#555555"
-PANELS = {  # name: (record, first sample, length, show NeuroKit)
+PANELS = {
     "a": ("1704502.531", 121850, 800, False),
     "b": ("1640106.330", 28550, 800, False),
     "c": ("1716089.465", 19480, 800, True),
@@ -42,7 +34,6 @@ def style(ax, fs=11):
 
 
 def flag(ax, x, y, tag, col, side, dy, dx, ms=17, fs=10):
-    """A line from the mark to a circle with the method's letter."""
     cx, cy = x + (-dx if side == "left" else dx), y + dy
     ax.plot([x, cx], [y, cy], color=col, lw=1.8, zorder=4)
     ax.plot(cx, cy, "o", ms=ms, mfc=col, mec="white", mew=1.2, zorder=5)
@@ -62,7 +53,6 @@ def main() -> None:
     x = {k: bandpass(review_copy(recs[k]["sig"]), FS, 0.5, 40.0) for k in need if k in recs}
     marks = {k: json.loads((args.marks / f"{k}.json").read_text(encoding="utf-8")) for k in x}
 
-    # ---------------------------------------------------------------- Fig. 2
     for name, (rec, a, n, show_nk) in PANELS.items():
         if rec not in x:
             continue
@@ -90,7 +80,6 @@ def main() -> None:
         fig.savefig(args.out / f"fig2_{name}.png", dpi=300)
         plt.close(fig)
 
-    # ---------------------------------------------------------------- Fig. 3
     if GROUP_RECORD in x:
         sig = x[GROUP_RECORD]; pre, post = int(0.2 * FS), int(0.4 * FS)
         tt = np.arange(-pre, post) * 1000 / FS

@@ -1,16 +1,9 @@
-"""Peak matching, detection metrics, detector agreement and RR plausibility checks."""
-
 from __future__ import annotations
 
 import numpy as np
 
 
 def match_peaks(ref: np.ndarray, det: np.ndarray, tol: int) -> tuple[np.ndarray, np.ndarray]:
-    """One-to-one matching of detections to reference peaks within +-tol samples.
-
-    Greedy by smallest distance, so a reference beat can be claimed by at most one detection.
-    Returns (matched_ref_idx, matched_det_idx) as index arrays into ref / det.
-    """
     ref = np.asarray(ref, dtype=int)
     det = np.asarray(det, dtype=int)
     if ref.size == 0 or det.size == 0:
@@ -38,7 +31,6 @@ def match_peaks(ref: np.ndarray, det: np.ndarray, tol: int) -> tuple[np.ndarray,
 
 
 def detection_metrics(ref: np.ndarray, det: np.ndarray, fs: float, tol_ms: float = 75.0) -> dict:
-    """Se, PPV, F1 and localization errors of det against ref."""
     tol = int(round(tol_ms / 1000 * fs))
     mr, md = match_peaks(ref, det, tol)
     tp = mr.size
@@ -62,12 +54,6 @@ def detection_metrics(ref: np.ndarray, det: np.ndarray, fs: float, tol_ms: float
 
 def consensus_peaks(results: dict[str, np.ndarray], fs: float, tol_ms: float = 75.0,
                     min_votes: int | None = None) -> tuple[np.ndarray, np.ndarray]:
-    """Cluster detections from all detectors; return (consensus positions, vote counts).
-
-    A cluster = detections within tol of each other; its position is the median.
-    Only clusters with >= min_votes detectors (default: majority) are returned as consensus,
-    but votes for *all* clusters are returned via the second output on all_clusters().
-    """
     clusters, votes = all_clusters(results, fs, tol_ms)
     n = len(results)
     if min_votes is None:
@@ -88,7 +74,6 @@ def all_clusters(results: dict[str, np.ndarray], fs: float, tol_ms: float = 75.0
     clusters, votes = [], []
     cur = [pts[0]]
     for x, m in pts[1:]:
-        # gap-based: join if close to the previous point and the method is not yet in the cluster
         if x - cur[-1][0] <= tol and m not in {mm for _, mm in cur}:
             cur.append((x, m))
         else:
@@ -101,11 +86,6 @@ def all_clusters(results: dict[str, np.ndarray], fs: float, tol_ms: float = 75.0
 
 
 def rr_flags(peaks: np.ndarray, fs: float, min_rr_ms: float = 250.0, gap_factor: float = 1.8) -> dict:
-    """Reference-free plausibility checks on a detector's output.
-
-    too_short: RR < min_rr_ms  (likely double detection, e.g. R + T wave)
-    gaps:      RR > gap_factor * local median RR (likely missed beat)
-    """
     if len(peaks) < 3:
         return {"n_peaks": len(peaks), "mean_hr_bpm": np.nan, "rr_too_short": 0, "rr_gaps": 0,
                 "short_idx": np.array([], int), "gap_idx": np.array([], int)}
@@ -126,10 +106,6 @@ def rr_flags(peaks: np.ndarray, fs: float, min_rr_ms: float = 250.0, gap_factor:
 
 
 def parse_intervals(raw) -> list[tuple[int, int]]:
-    """Best-effort parsing of annotated noise intervals from record metadata.
-
-    Accepts [[s, e], ...], [{"start": s, "end": e}, ...] or [{"from":..,"to":..}, ...].
-    """
     out = []
     if not raw:
         return out
